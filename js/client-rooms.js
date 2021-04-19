@@ -6,6 +6,9 @@
 		type: 'rooms',
 		title: 'Rooms',
 		isSideRoom: true,
+		events: {
+			'click button[name=switchListType]': 'switchListType'
+		},
 		initialize: function () {
 			this.$el.addClass('ps-room-light').addClass('scrollable');
 			var buf = '<div class="pad"><button class="button" style="float:right;font-size:10pt;margin-top:3px" name="closeHide"><i class="fa fa-caret-right"></i> Hide</button>';
@@ -79,13 +82,15 @@
 		},
 		updateRoomList: function () {
 			var rooms = app.roomsData;
+			this.roomListType = 'chat';
 
 			if (rooms.userCount) {
 				var userCount = Number(rooms.userCount);
 				var battleCount = Number(rooms.battleCount);
 				var leftSide = '<button class="button" name="finduser" title="Find an online user"><span class="pixelated usercount" title="Meloetta is PS\'s mascot! The Aria forme is about using its voice, and represents our chatrooms." ></span><strong>' + userCount + '</strong> ' + (userCount == 1 ? 'user' : 'users') + ' online</button> ';
 				var rightSide = '<button class="button" name="roomlist" title="Watch an active battle"><span class="pixelated battlecount" title="Meloetta is PS\'s mascot! The Pirouette forme is Fighting-type, and represents our battles." ></span><strong>' + battleCount + '</strong> active ' + (battleCount == 1 ? 'battle' : 'battles') + '</button>';
-				this.$('.roomlisttop').html('<div class="roomcounters">' + leftSide + '</td><td>' + rightSide + '</div>');
+				var lower = '<br /><button name="switchListType">View sections</button>';
+				this.$('.roomlisttop').html('<div class="roomcounters">' + leftSide + '</td><td>' + rightSide + lower + '</div>');
 			}
 			var sections = rooms.sections;
 			var psplRooms = [];
@@ -122,6 +127,52 @@
 				}
 			}
 			this.$('.roomlist').last().html(buf);
+		},
+		updateSectionList: function () {
+			this.roomListType = 'sections';
+			var sections = rooms.sections;
+			var psplRooms = [];
+			if (rooms.pspl && rooms.pspl.length) {
+				psplRooms = rooms.pspl.filter(function (x) {
+					return (sections.officialrooms || []).map(function (z) {
+						return z.title;
+					}).indexOf(x.title) < 0;
+				});
+			}
+			this.$('button[name=switchListType]').text('View all rooms');
+			this.$('.roomlist').first().html(
+				(sections.officialrooms && sections.officialrooms.length ? '<h2 class="rooms-officialchatrooms">Official chat rooms</h2>' + _.map(sections.officialrooms, this.renderRoomBtn).join("") : '') +
+				(psplRooms.length ? '<h2 class="rooms-psplchatrooms">PSPL Winner</h2>' + _.map(psplRooms.sort(this.compareRooms), this.renderRoomBtn).join("") : '')
+			);
+			var buf = '';
+			for (var i in sections) {
+				if (i === 'officialrooms' || i === 'nonpublic' || i === 'none') continue;
+				var section = sections[i].filter(function (x) {
+					return (rooms.pspl || []).map(function (z) {
+						return z.title;
+					}).indexOf(x.title) < 0;
+				});
+				if (!section.length) continue;
+				buf += '<h2 class="rooms-chatrooms">' + ((rooms.sectionTitles || {})[i] || i) + '</h2>' + _.map(section.sort(this.compareRooms), this.renderRoomBtn).join("");
+			}
+			if (sections.none && sections.none.length) {
+				var none = sections.none.filter(function (x) {
+					return (rooms.pspl || []).map(function (z) {
+						return z.title;
+					}).indexOf(x.title) < 0;
+				});
+				if (none.length) {
+					buf += '<h2 class="rooms-chatrooms">Chat rooms</h2>' + _.map(none.sort(this.compareRooms), this.renderRoomBtn).join("");
+				}
+			}
+			this.$('.roomlist').last().html(buf);
+		},
+		switchListType: function () {
+			if (this.roomListType === 'sections') {
+				this.updateRoomList();
+			} else {
+				this.updateSectionList();
+			}
 		},
 		roomlist: function () {
 			app.joinRoom('battles');
